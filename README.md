@@ -66,6 +66,50 @@ const status = await client.getStatus('my-job', result.queueId);
 await client.downloadAll('my-job', status.buildNumber, './dist');
 ```
 
+## 打包工作流命令
+
+项目提供开箱即用的打包工作流脚本（位于 `examples/`），通过 npm script 调用：
+
+| 命令 | 脚本 | 用途 |
+|------|------|------|
+| `npm run pcx` | `examples/02-build-pcx-full-workflow.ts` | 固定打包 pcx 模块补丁包 |
+| `npm run patch` | `examples/build-patch-workflow.ts` | **灵活打包**：按版本清单 + 指定保留模块 |
+| `npm run gwwy` | `examples/03-build-gwwy-full-workflow.ts` | gwwy uniapp 构建压缩 |
+
+### patch 命令（灵活模块打包）
+
+按 `project/` 目录下的版本清单文件打包，并从全量产物中只保留指定模块。
+
+**参数：**
+
+| 参数 | 必填 | 默认 | 说明 |
+|------|------|------|------|
+| `--project` | 是 | - | `project/` 目录下的 vOrange 版本清单文件名 |
+| `--module` | 否 | `pcx` | 保留的模块，逗号分隔多个则出一个合并包 |
+
+**示例：**
+
+```bash
+# 用 vOrange-gwzc-530 版本清单，默认保留 pcx 模块
+npm run patch -- --project vOrange-gwzc-530
+
+# 指定单个模块
+npm run patch -- --project vOrange-gwzc-530 --module home
+
+# 保留多个模块（出一个含 pcx + home 的合并包）
+npm run patch -- --project vOrange-gwzc-530 --module pcx,home
+```
+
+**流程**：触发 `orange-aliyun` 全量打包 → 触发 `orange-patch` 按模块裁剪 → 下载补丁包到 `downloads/`。
+
+**版本清单文件格式**（`project/<文件名>`，每行一个模块：`<时间戳> <模块名> <分支-提交>`）：
+
+```
+20260609130210 orange Feature_20250830_wuZhiHua-HEAD
+20260609130233 home   Feature_20250410_wuZhiHua-4e9d71ff
+20260724113202 pcx    Feature_20260530_gwzc-HEAD
+```
+
 ## API 文档
 
 ### JenkinsClient
