@@ -20,7 +20,8 @@
     "pty-pcx": "tsx ./examples/01-build-pty-pcx-full-workflow.ts",
     "pcx": "tsx ./examples/02-build-pcx-full-workflow.ts",
     "patch": "tsx ./examples/build-patch-workflow.ts",
-    "gwwy": "tsx ./examples/03-build-gwwy-full-workflow.ts"
+    "gwwy": "tsx ./examples/03-build-gwwy-full-workflow.ts",
+    "gwwy-online": "tsx ./examples/04-build-gwwy-uniapp-online.ts"
   },
   "keywords": [
     "jenkins",

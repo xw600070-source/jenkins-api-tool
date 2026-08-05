@@ -74,7 +74,8 @@ await client.downloadAll('my-job', status.buildNumber, './dist');
 |------|------|------|
 | `npm run pcx` | `examples/02-build-pcx-full-workflow.ts` | 固定打包 pcx 模块补丁包 |
 | `npm run patch` | `examples/build-patch-workflow.ts` | **灵活打包**：按版本清单 + 指定保留模块 |
-| `npm run gwwy` | `examples/03-build-gwwy-full-workflow.ts` | gwwy uniapp 构建压缩 |
+| `npm run gwwy` | `examples/03-build-gwwy-full-workflow.ts` | gwwy uniapp **本地**构建压缩 |
+| `npm run gwwy-online` | `examples/04-build-gwwy-uniapp-online.ts` | gwwy uniapp **线上**打包：触发 Jenkins 按分支打包 |
 
 ### patch 命令（灵活模块打包）
 
@@ -109,6 +110,29 @@ npm run patch -- --project vOrange-gwzc-530 --module pcx,home
 20260609130233 home   Feature_20250410_wuZhiHua-4e9d71ff
 20260724113202 pcx    Feature_20260530_gwzc-HEAD
 ```
+
+### gwwy-online 命令（线上打包）
+
+触发 Jenkins 任务 `web/job/gwwy-uniapp` 按指定分支打包，等待构建结束并打印构建号 / 状态 / 构建页地址。与本地打包命令 `npm run gwwy`（本机 Git Bash 构建）互为线上/线下对应版本。
+
+**参数：**
+
+| 参数 | 必填 | 默认 | 说明 |
+|------|------|------|------|
+| `--branch` | 是 | - | 要打包的 Git 分支名（对应 Jenkins 任务的 `git_branch` 参数） |
+| `--head` | 否 | `HEAD` | 分支上的提交 ref（对应 Jenkins 任务的 `git_head` 参数） |
+
+**示例：**
+
+```bash
+# 默认打包分支最新提交(HEAD)
+npm run gwwy-online -- --branch Feature_20260130_chongQingWenLvWei
+
+# 指定具体提交
+npm run gwwy-online -- --branch Feature_20260130_chongQingWenLvWei --head 4e9d71ff
+```
+
+**流程**：认证预检 → 触发 `web/job/gwwy-uniapp` 构建（`wait:true` 等待完成，高负载下超时自动回避重试）→ 打印构建结果 → 从控制台日志提取下载链接（`gwwy-uniapp-file` 静态目录）并下载到 `downloads/`。
 
 ## API 文档
 
