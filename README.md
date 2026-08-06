@@ -103,6 +103,8 @@ npm run patch -- --project vOrange-gwzc-530 --module pcx,home
 
 **流程**：触发 `orange-aliyun` 全量打包 → 触发 `orange-patch` 按模块裁剪 → 下载补丁包到 `downloads/`。
 
+> 打包结束会弹 macOS 系统通知（成功/失败）。临时关闭：`NOTIFY=0 npm run patch -- ...`。
+
 **版本清单文件格式**（`project/<文件名>`，每行一个模块：`<时间戳> <模块名> <分支-提交>`）：
 
 ```
@@ -133,6 +135,8 @@ npm run gwwy-online -- --branch Feature_20260130_chongQingWenLvWei --head 4e9d71
 ```
 
 **流程**：认证预检 → 触发 `web/job/gwwy-uniapp` 构建（`wait:true` 等待完成，高负载下超时自动回避重试）→ 打印构建结果 → 从控制台日志提取下载链接（`gwwy-uniapp-file` 静态目录）并下载到 `downloads/`。
+
+> 打包结束会弹 macOS 系统通知（成功/失败）。临时关闭：`NOTIFY=0 npm run gwwy-online -- ...`。
 
 ## API 文档
 

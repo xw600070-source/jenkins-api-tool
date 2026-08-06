@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { JenkinsClient, LogLevel, BuildFailedError, TimeoutError } from "../src";
+import { JenkinsClient, LogLevel, BuildFailedError, TimeoutError, notify } from "../src";
 import path from "path";
 import * as fs from "fs";
 import axios from "axios";
@@ -136,6 +136,13 @@ async function main() {
         });
 
         console.log(`  ✅ 已下载: ${outputPath}`);
+        notify({
+          command: "gwwy-online",
+          success: true,
+          buildNumber: result.buildNumber,
+          duration: result.duration,
+          artifactPath: outputPath,
+        });
       } else {
         console.log("  ⚠️ 控制台日志中未找到下载链接（gwwy-uniapp_<时间戳>.zip）");
       }
@@ -147,9 +154,25 @@ async function main() {
   } catch (error) {
     if (error instanceof BuildFailedError) {
       console.error(`❌ 构建失败: #${error.buildNumber}`);
+      notify({
+        command: "gwwy-online",
+        success: false,
+        buildNumber: error.buildNumber,
+        error: error.message,
+      });
     } else if (error instanceof TimeoutError) {
       console.error(`❌ 构建超时: ${error.message}`);
+      notify({
+        command: "gwwy-online",
+        success: false,
+        error: error.message,
+      });
     } else {
+      notify({
+        command: "gwwy-online",
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }

@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { JenkinsClient, LogLevel } from "../src";
+import { JenkinsClient, LogLevel, notify } from "../src";
 import path from "path";
 import * as fs from "fs";
 import axios from "axios";
@@ -164,6 +164,13 @@ async function main() {
           });
 
           console.log(`  Downloaded: ${outputPath}`);
+          notify({
+            command: "patch",
+            success: true,
+            buildNumber: patchResult.buildNumber,
+            duration: patchResult.duration,
+            artifactPath: outputPath,
+          });
         } else {
           console.log("  Warning: No download URL found in orange-patch console output");
         }
@@ -174,4 +181,11 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  notify({
+    command: "patch",
+    success: false,
+    error: error instanceof Error ? error.message : String(error),
+  });
+  console.error(error);
+});
