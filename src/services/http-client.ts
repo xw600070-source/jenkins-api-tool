@@ -228,6 +228,15 @@ export class HttpClient {
   }
 
   /**
+   * GET 请求方法（返回 data + 响应头）
+   * 供需要读取响应头的场景使用，如 progressiveText 的 X-Text-Size
+   */
+  async getFull<T>(urlPath: string, params?: Record<string, any>): Promise<{ data: T; headers: Record<string, string> }> {
+    const response: AxiosResponse<T> = await this.axiosInstance.get(urlPath, { params });
+    return { data: response.data, headers: response.headers as Record<string, string> };
+  }
+
+  /**
    * POST 请求方法
    * 返回一个包含 data（响应体）和 headers（响应头）的对象
    */

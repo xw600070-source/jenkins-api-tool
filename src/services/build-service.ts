@@ -12,9 +12,7 @@ import {
 } from '../types';
 import { Logger } from '../utils/logger';
 import { formatDuration } from '../utils/helpers';
-import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';
-
-export class BuildService {
+import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export class BuildService {
   private httpClient: HttpClient;
   private statusService: StatusService;
   private logger: Logger;
@@ -65,16 +63,19 @@ export class BuildService {
   async waitForCompletion(
     jobName: string,
     queueId: number,
-    options: { pollInterval: number; maxWaitTime: number; retryOnTimeout?: number }
+    options: { pollInterval: number; maxWaitTime: number; retryOnTimeout?: number; streamLogs?: boolean }
   ): Promise<BuildCompleteResult> {
     const startTime = Date.now();
-    const { pollInterval, maxWaitTime, retryOnTimeout = 3 } = options;
+    const { pollInterval, maxWaitTime } = options;
+    const retryOnTimeout = options.retryOnTimeout ?? 3;
     let timeoutRetryCount = 0;  // 全局超时重试计数器
+    let streamLogs = options.streamLogs ?? false;
+    let logOffset = 0;          // progressiveText 已消费的字节偏移
 
     this.logger.info(
       `Waiting for build to complete ` +
       `(poll interval: ${pollInterval}ms, max wait: ${formatDuration(maxWaitTime)}, ` +
-      `retry on timeout: ${retryOnTimeout})`
+      `retry on timeout: ${retryOnTimeout}${streamLogs ? ', stream logs: on' : ''})`
     );
 
     // Step 1: Poll queue until executable is available
@@ -114,6 +115,16 @@ export class BuildService {
     while (true) {
       if (Date.now() - startTime > maxWaitTime) {
         throw new TimeoutError(`Build timed out after ${formatDuration(maxWaitTime)}`);
+      }
+
+      // 增量打印构建日志（progressiveText）；端点不可用等异常只降级一次，不影响状态轮询
+      if (streamLogs) {
+        try {
+          logOffset = await this.streamConsoleDelta(jobName, buildNumber, logOffset);
+        } catch (error: any) {
+          streamLogs = false;
+          this.logger.warn(`Streaming console disabled: ${error.message}`);
+        }
       }
 
       try {
@@ -157,6 +168,75 @@ export class BuildService {
         throw error;
       }
     }
+  }
+
+  /**
+   * 停止进行中的构建
+   */
+  async stopBuild(
+    jobName: string,
+    buildNumber: number,
+    options?: { crumbIssuer?: boolean }
+  ): Promise<void> {
+    if (options?.crumbIssuer !== false) {
+      await this.httpClient.initCrumb();
+    }
+
+    const url = `/job/${jobName}/${buildNumber}/stop`;
+    this.logger.info(`Stopping build: ${jobName} #${buildNumber}`);
+
+    try {
+      await this.httpClient.post(url, null);
+    } catch (error: any) {
+      this.handleBuildTriggerError(error, jobName);
+    }
+  }
+
+  /**
+   * 重试已完成的构建（相当于 Jenkins 页面上的 Retry）
+   */
+  async retryBuild(
+    jobName: string,
+    buildNumber: number,
+    options?: { crumbIssuer?: boolean }
+  ): Promise<BuildTriggerResult> {
+    if (options?.crumbIssuer !== false) {
+      await this.httpClient.initCrumb();
+    }
+
+    const url = `/job/${jobName}/${buildNumber}/retry`;
+    this.logger.info(`Retrying build: ${jobName} #${buildNumber}`);
+
+    try {
+      const response = await this.httpClient.post(url, null);
+      const queueId = this.extractQueueId(response);
+      return {
+        queueId,
+        url: `${this.httpClient.getBaseUrl()}/job/${jobName}/`,
+        jobName,
+      };
+    } catch (error: any) {
+      this.handleBuildTriggerError(error, jobName);
+    }
+  }
+
+  /**
+   * 拉取并打印一段构建日志增量（progressiveText），返回新的字节偏移
+   */
+  private async streamConsoleDelta(
+    jobName: string,
+    buildNumber: number,
+    start: number
+  ): Promise<number> {
+    const url = `/job/${jobName}/${buildNumber}/progressiveText`;
+    const { data, headers } = await this.httpClient.getFull<string>(url, { start });
+
+    if (data) {
+      process.stdout.write(data);
+    }
+
+    const textSize = parseInt(String(headers['x-text-size'] ?? '0'), 10);
+    return Number.isFinite(textSize) && textSize > 0 ? textSize : start;
   }
 
   /**

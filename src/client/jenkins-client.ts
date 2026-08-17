@@ -1,4 +1,4 @@
-import { JenkinsClientConfig, BuildParameters, BuildOptions, BuildTriggerResult, BuildCompleteResult, BuildStatusResult, DownloadResult, DownloadAllResult, DownloadOptions } from '../types';
+import { JenkinsClientConfig, BuildParameters, BuildOptions, BuildTriggerResult, BuildCompleteResult, BuildStatusResult, DownloadResult, DownloadAllResult, DownloadOptions, JobInfo, QueueItemInfo } from '../types';
 import { Logger } from '../utils/logger';
 import { HttpClient } from '../services/http-client';
 import { BuildService } from '../services/build-service';
@@ -52,6 +52,7 @@ export class JenkinsClient {
       maxWaitTime: options?.maxWaitTime || 600000,
       crumbIssuer: options?.crumbIssuer !== false,
       retryOnTimeout: options?.retryOnTimeout ?? 3,
+      streamLogs: options?.streamLogs ?? false,
     };
 
     // Step 1: Trigger the build
@@ -66,6 +67,7 @@ export class JenkinsClient {
           pollInterval: buildOptions.pollInterval,
           maxWaitTime: buildOptions.maxWaitTime,
           retryOnTimeout: buildOptions.retryOnTimeout,
+          streamLogs: buildOptions.streamLogs,
         }
       );
     }
@@ -139,6 +141,65 @@ export class JenkinsClient {
     const url = `/job/${jobName}/${buildNumber}/consoleText`;
     this.logger.debug(`Fetching console text: ${url}`);
     return await this.httpClient.get<string>(url);
+  }
+
+  /**
+   * 增量获取构建日志（progressiveText）
+   * @param start - 已消费的字节偏移（首次传 0）
+   * @returns text 为本次新增内容；textSize 作为下次的 start；moreData 表示构建是否还在产出日志
+   */
+  async getProgressiveConsoleText(
+    jobName: string,
+    buildNumber: number,
+    start = 0
+  ): Promise<{ text: string; textSize: number; moreData: boolean }> {
+    const url = `/job/${jobName}/${buildNumber}/progressiveText`;
+    this.logger.debug(`Fetching progressive console text: ${url} (start: ${start})`);
+
+    const { data, headers } = await this.httpClient.getFull<string>(url, { start });
+
+    return {
+      text: data,
+      textSize: parseInt(String(headers['x-text-size'] ?? '0'), 10),
+      moreData: headers['x-more-data'] === 'true',
+    };
+  }
+
+  /**
+   * 列出 job（根目录或指定 folder，只列一层）
+   * @param folder - 可选的文件夹路径，如 'web'
+   */
+  async listJobs(folder?: string): Promise<JobInfo[]> {
+    return await this.statusService.listJobs(folder);
+  }
+
+  /**
+   * 查看构建队列
+   */
+  async getQueue(): Promise<QueueItemInfo[]> {
+    return await this.statusService.getQueue();
+  }
+
+  /**
+   * 停止进行中的构建
+   */
+  async stopBuild(
+    jobName: string,
+    buildNumber: number,
+    options?: { crumbIssuer?: boolean }
+  ): Promise<void> {
+    return await this.buildService.stopBuild(jobName, buildNumber, options);
+  }
+
+  /**
+   * 重试已完成的构建（相当于 Jenkins 页面上的 Retry）
+   */
+  async retryBuild(
+    jobName: string,
+    buildNumber: number,
+    options?: { crumbIssuer?: boolean }
+  ): Promise<BuildTriggerResult> {
+    return await this.buildService.retryBuild(jobName, buildNumber, options);
   }
 
   /**

@@ -1,5 +1,5 @@
 import { HttpClient } from './http-client';
-import { BuildStatusResult, BuildStatus, ArtifactInfo, BuildCause, Parameter } from '../types';
+import { BuildStatusResult, BuildStatus, ArtifactInfo, BuildCause, Parameter, JobInfo, QueueItemInfo } from '../types';
 import { Logger } from '../utils/logger';
 import { JenkinsError } from '../errors';
 
@@ -54,6 +54,44 @@ export class StatusService {
     }
 
     return null;
+  }
+
+  /**
+   * 列出 job（根目录或指定 folder，只列一层）
+   */
+  async listJobs(folder?: string): Promise<JobInfo[]> {
+    const base = folder ? `/job/${folder}` : '';
+    const url = `${base}/api/json`;
+
+    this.logger.debug(`Listing jobs: ${url}`);
+
+    const data: any = await this.httpClient.get(url, { tree: 'jobs[name,url,color]' });
+
+    return (data.jobs || []).map((job: any) => ({
+      name: job.name,
+      url: job.url,
+      color: job.color || 'notbuilt',
+    }));
+  }
+
+  /**
+   * 查看构建队列
+   */
+  async getQueue(): Promise<QueueItemInfo[]> {
+    const url = '/queue/api/json';
+
+    this.logger.debug(`Fetching queue: ${url}`);
+
+    const data: any = await this.httpClient.get(url);
+
+    return (data.items || []).map((item: any) => ({
+      id: item.id,
+      why: item.why,
+      taskName: item.task?.name,
+      taskUrl: item.task?.url,
+      buildNumber: item.executable?.number,
+      queuedSince: item.inQueueSince,
+    }));
   }
 
   /**

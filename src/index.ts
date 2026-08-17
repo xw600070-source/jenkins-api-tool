@@ -21,6 +21,8 @@ export type {
   BuildStatusResult,
   DownloadResult,
   DownloadAllResult,
+  JobInfo,
+  QueueItemInfo,
 } from './types';
 
 // Errors

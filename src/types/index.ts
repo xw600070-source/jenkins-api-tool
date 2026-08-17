@@ -59,6 +59,12 @@ export interface BuildOptions {
    * @default 3
    */
   retryOnTimeout?: number;
+  /**
+   * 等待构建完成期间是否增量打印构建日志（progressiveText）
+   * 端点不可用时自动降级为静默轮询
+   * @default false
+   */
+  streamLogs?: boolean;
 }
 
 /**
@@ -229,4 +235,37 @@ export interface DownloadAllResult {
   failed: number;
   /** 详细结果列表 */
   results: DownloadResult[];
+}
+
+/**
+ * Job 信息（listJobs 返回）
+ */
+export interface JobInfo {
+  /** Job 名称 */
+  name: string;
+  /** Job URL */
+  url: string;
+  /**
+   * Jenkins 原生颜色状态：blue=上次成功 red=上次失败 后缀 _anime=进行中
+   * notbuilt=未构建 disabled=已禁用 aborted=已中止
+   */
+  color: string;
+}
+
+/**
+ * 构建队列项信息（getQueue 返回）
+ */
+export interface QueueItemInfo {
+  /** 队列项 ID */
+  id: number;
+  /** 排队原因（如 "等待空闲执行器"） */
+  why?: string;
+  /** 排队的任务名（job 名） */
+  taskName?: string;
+  /** 排队的任务 URL */
+  taskUrl?: string;
+  /** 已开始执行时的构建编号 */
+  buildNumber?: number;
+  /** 入队时间戳(ms) */
+  queuedSince?: number;
 }
