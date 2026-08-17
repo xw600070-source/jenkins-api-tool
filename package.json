@@ -2,29 +2,34 @@
   "name": "jenkins-api-tool",
   "version": "1.0.0",
   "description": "Jenkins RESTful API client SDK for Node.js",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "scripts": {
     "dev": "tsx",
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "jenkins": "tsx src/cli/index.ts",
     "pty-pcx": "tsx ./examples/01-build-pty-pcx-full-workflow.ts",
     "pcx": "tsx ./examples/02-build-pcx-full-workflow.ts",
     "patch": "tsx ./examples/build-patch-workflow.ts",
     "gwwy": "tsx ./examples/03-build-gwwy-full-workflow.ts",
-    "gwwy-online": "tsx ./examples/04-build-gwwy-uniapp-online.ts",
-    "jenkins": "tsx src/cli/index.ts",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "gwwy-online": "tsx ./examples/04-build-gwwy-uniapp-online.ts"
   },
   "keywords": [
     "jenkins",
