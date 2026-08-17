@@ -21,7 +21,8 @@
     "pcx": "tsx ./examples/02-build-pcx-full-workflow.ts",
     "patch": "tsx ./examples/build-patch-workflow.ts",
     "gwwy": "tsx ./examples/03-build-gwwy-full-workflow.ts",
-    "gwwy-online": "tsx ./examples/04-build-gwwy-uniapp-online.ts"
+    "gwwy-online": "tsx ./examples/04-build-gwwy-uniapp-online.ts",
+    "jenkins": "tsx src/cli/index.ts"
   },
   "keywords": [
     "jenkins",
