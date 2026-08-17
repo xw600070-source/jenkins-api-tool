@@ -6,6 +6,8 @@ import { JenkinsError } from '../errors';
 export interface PickOptions {
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
+  /** 文件列表标题，默认"可选文件:" */
+  title?: string;
 }
 
 /**
@@ -32,7 +34,7 @@ export async function pickProjectFile(dir: string, options?: PickOptions): Promi
     throw new JenkinsError(`目录 ${dir} 下没有可选的文件`);
   }
 
-  console.log('\n可选文件:');
+  console.log(`\n${options?.title ?? '可选文件'}:`);
   files.forEach((file, index) => console.log(`  ${index + 1}. ${file}`));
 
   const rl = readline.createInterface({

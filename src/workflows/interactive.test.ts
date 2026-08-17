@@ -111,6 +111,25 @@ describe('pickProjectFile', () => {
     }
   });
 
+  it('自定义标题显示', async () => {
+    const dir = setup(['a.txt', 'b.txt']);
+    const consoleSpy = spyConsole();
+    try {
+      const io = promptIO(['2']);
+      const picked = await pickProjectFile(dir, {
+        input: io.inputStream,
+        output: io.outputStream,
+        title: '选择 vOrange 版本清单文件',
+      });
+      expect(picked).toBe('b.txt');
+      expect(consoleSpy.text()).toContain('选择 vOrange 版本清单文件:');
+      io.inputStream.end();
+    } finally {
+      consoleSpy.restore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('空目录抛错', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pick-test-'));
     try {

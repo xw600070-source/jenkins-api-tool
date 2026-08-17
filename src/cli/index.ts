@@ -6,6 +6,7 @@ import { pcxCommand } from '../workflows/pcx';
 import { ptyPcxCommand } from '../workflows/pty-pcx';
 import { gwwyCommand } from '../workflows/gwwy-local';
 import { gwwyOnlineCommand } from '../workflows/gwwy-online';
+import { mergeCommand } from '../workflows/version-merge';
 
 /**
  * 统一 CLI 入口
@@ -18,6 +19,7 @@ const HELP = `用法: npm run jenkins -- <子命令> [参数]
 打包工作流:
   patch [--project x] [--module m]   灵活模块打包（--project 可省略进入交互选择）
   pcx                                固定打包 pcx 模块补丁包
+  merge [--vorange x] [--patch y]    合并两份版本清单（缺省读 merge/ 目录默认文件）
   pty-pcx                            pty-pcx 完整打包（构建+下载+解压+重压缩）
   gwwy [--branch x]                  gwwy uniapp 本地构建压缩
   gwwy-online --branch x [--head h]  gwwy uniapp 线上打包
@@ -158,6 +160,9 @@ async function main(): Promise<void> {
       return;
     case 'pcx':
       pcxCommand(rest);
+      return;
+    case 'merge':
+      mergeCommand(rest);
       return;
     case 'pty-pcx':
       ptyPcxCommand(rest);

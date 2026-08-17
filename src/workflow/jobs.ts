@@ -9,6 +9,8 @@ export const JOBS = {
   orangeAliyun: 'web/job/orange-aliyun',
   /** orange 按模块裁剪出补丁包 */
   orangePatch: 'web/job/orange-patch',
+  /** orange 版本清单合并（两个文件参数：vOrange + orangePatchVersion.txt） */
+  orangeVersionMerge: 'web/job/orange-version-merge',
   /** gwwy uniapp 线上打包 */
   gwwyUniapp: 'web/job/gwwy-uniapp',
   /** pty-pcx 客户端打包 */

@@ -80,6 +80,7 @@ npm run jenkins -- <子命令> [参数]
 |--------|----------------|------|
 | `patch` | `npm run patch` | **灵活打包**：按版本清单 + 指定保留模块 |
 | `pcx` | `npm run pcx` | 固定打包 pcx 模块补丁包 |
+| `merge` | `npm run merge` | **版本清单合并**：上传两份清单到 orange-version-merge |
 | `pty-pcx` | `npm run pty-pcx` | pty-pcx 完整打包（构建+下载+解压+重压缩） |
 | `gwwy` | `npm run gwwy` | gwwy uniapp **本地**构建压缩 |
 | `gwwy-online` | `npm run gwwy-online` | gwwy uniapp **线上**打包：触发 Jenkins 按分支打包 |
@@ -129,6 +130,37 @@ npm run patch -- --project vOrange-gwzc-530 --module pcx,home
 20260609130233 home   Feature_20250410_wuZhiHua-4e9d71ff
 20260724113202 pcx    Feature_20260530_gwzc-HEAD
 ```
+
+### merge 命令（版本清单合并）
+
+上传两份清单文件到 Jenkins 任务 `orange-version-merge`（文件参数 `vOrange` + `orangePatchVersion.txt`），等待合并完成（约 1 分钟），下载合并结果到 `downloads/vOrange-merge-b<构建号>`。
+
+**默认输入目录 `merge/`**（本地管理，不入 git）：把两份文件按下面的名字放进去，直接运行 `npm run merge` 即可，无需参数：
+
+```
+merge/
+├── vOrange                  # vOrange 版本清单
+└── orangePatchVersion.txt   # 补丁版本文件
+```
+
+**参数：**
+
+| 参数 | 必填 | 默认 | 说明 |
+|------|------|------|------|
+| `--vorange` | 否 | `merge/vOrange` | vOrange 版本清单；纯文件名先查 `merge/` 再查 `project/`，也可传相对/绝对路径 |
+| `--patch` | 否 | `merge/orangePatchVersion.txt` | 补丁版本文件；查找规则同上 |
+
+**示例：**
+
+```bash
+# 读 merge/ 目录下的默认两个文件
+npm run merge
+
+# 显式指定（project/ 里已有的清单可直接用文件名）
+npm run merge -- --vorange vOrange-gwzc-530 --patch orangePatchVersion.txt
+```
+
+**流程**：认证预检 → 上传两份清单触发合并（期间流式打印构建日志）→ 从 workspace 认证下载合并结果 → 保存为 `downloads/vOrange-merge-b<构建号>`（确认内容后可复制到 `project/` 供 patch 使用）。
 
 ### gwwy / gwwy-online 命令（uniapp 打包）
 

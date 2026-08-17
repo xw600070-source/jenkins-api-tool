@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parsePatchArgs } from './patch';
 import { parseGwwyOnlineArgs } from './gwwy-online';
 import { parseGwwyLocalArgs, DEFAULT_TARGET_BRANCH } from './gwwy-local';
+import { parseMergeArgs } from './version-merge';
 
 describe('parsePatchArgs', () => {
   it('无参数时 module 默认 pcx、project 可缺省（交互选择）', () => {
@@ -45,5 +46,22 @@ describe('parseGwwyLocalArgs', () => {
     expect(parseGwwyLocalArgs(['--branch', 'Feature_20260701_x'])).toEqual({
       branch: 'Feature_20260701_x',
     });
+  });
+});
+
+describe('parseMergeArgs', () => {
+  it('无参数时两个文件均为空（交互选择）', () => {
+    expect(parseMergeArgs([])).toEqual({ vorange: undefined, patch: undefined });
+  });
+
+  it('解析 --vorange 与 --patch', () => {
+    expect(parseMergeArgs(['--vorange', 'vOrange-gwzc-530', '--patch', 'orangePatchVersion.txt'])).toEqual({
+      vorange: 'vOrange-gwzc-530',
+      patch: 'orangePatchVersion.txt',
+    });
+  });
+
+  it('只传其中一个时另一个为空', () => {
+    expect(parseMergeArgs(['--patch', 'p.txt'])).toEqual({ vorange: undefined, patch: 'p.txt' });
   });
 });

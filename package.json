@@ -25,6 +25,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "jenkins": "tsx src/cli/index.ts",
+    "merge": "tsx ./examples/05-version-merge-workflow.ts",
     "pty-pcx": "tsx ./examples/01-build-pty-pcx-full-workflow.ts",
     "pcx": "tsx ./examples/02-build-pcx-full-workflow.ts",
     "patch": "tsx ./examples/build-patch-workflow.ts",
