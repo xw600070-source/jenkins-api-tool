@@ -154,7 +154,7 @@ export class JenkinsClient {
       const result = {
         authenticated: true,
         user: data.user || data.authenticatedUser || this.config.username,
-        version: data.version || data._class ? 'Connected' : undefined,
+        version: data.version || (data._class ? 'Connected' : undefined),
         url: this.config.url,
       };
 
