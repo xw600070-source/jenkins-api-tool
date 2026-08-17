@@ -68,14 +68,33 @@ await client.downloadAll('my-job', status.buildNumber, './dist');
 
 ## 打包工作流命令
 
-项目提供开箱即用的打包工作流脚本（位于 `examples/`），通过 npm script 调用：
+项目提供开箱即用的打包工作流（实现位于 `src/workflows/`，`examples/` 下是对应入口）。
 
-| 命令 | 脚本 | 用途 |
-|------|------|------|
-| `npm run pcx` | `examples/02-build-pcx-full-workflow.ts` | 固定打包 pcx 模块补丁包 |
-| `npm run patch` | `examples/build-patch-workflow.ts` | **灵活打包**：按版本清单 + 指定保留模块 |
-| `npm run gwwy` | `examples/03-build-gwwy-full-workflow.ts` | gwwy uniapp **本地**构建压缩 |
-| `npm run gwwy-online` | `examples/04-build-gwwy-uniapp-online.ts` | gwwy uniapp **线上**打包：触发 Jenkins 按分支打包 |
+### 统一 CLI（推荐）
+
+```bash
+npm run jenkins -- <子命令> [参数]
+```
+
+| 子命令 | 等价 npm script | 用途 |
+|--------|----------------|------|
+| `patch` | `npm run patch` | **灵活打包**：按版本清单 + 指定保留模块 |
+| `pcx` | `npm run pcx` | 固定打包 pcx 模块补丁包 |
+| `pty-pcx` | `npm run pty-pcx` | pty-pcx 完整打包（构建+下载+解压+重压缩） |
+| `gwwy` | `npm run gwwy` | gwwy uniapp **本地**构建压缩 |
+| `gwwy-online` | `npm run gwwy-online` | gwwy uniapp **线上**打包：触发 Jenkins 按分支打包 |
+| `jobs [folder]` | — | 列出 Jenkins job |
+| `queue` | — | 查看构建队列 |
+| `stop <job> <构建号>` | — | 停止进行中的构建（执行前确认） |
+| `retry <job> <构建号>` | — | 重试已完成的构建 |
+
+不带参数运行 `npm run jenkins` 查看完整帮助。
+
+**通用行为**：
+
+- 长任务（patch / pcx / gwwy-online）等待构建期间会**流式打印 Jenkins 构建日志**，不用干等。
+- 结束弹 macOS 系统通知（成功/失败）。临时关闭：`NOTIFY=0 npm run ...`。
+- **失败退出码为 1**（参数缺失、认证失败、构建失败、下载失败等），可在 CI / 串联脚本中判断。
 
 ### patch 命令（灵活模块打包）
 
@@ -85,25 +104,23 @@ await client.downloadAll('my-job', status.buildNumber, './dist');
 
 | 参数 | 必填 | 默认 | 说明 |
 |------|------|------|------|
-| `--project` | 是 | - | `project/` 目录下的 vOrange 版本清单文件名 |
+| `--project` | 否 | 交互选择 | `project/` 目录下的 vOrange 版本清单文件名；省略时列出文件供数字选择 |
 | `--module` | 否 | `pcx` | 保留的模块，逗号分隔多个则出一个合并包 |
 
 **示例：**
 
 ```bash
+# 交互选择清单文件，默认保留 pcx 模块
+npm run patch
+
 # 用 vOrange-gwzc-530 版本清单，默认保留 pcx 模块
 npm run patch -- --project vOrange-gwzc-530
-
-# 指定单个模块
-npm run patch -- --project vOrange-gwzc-530 --module home
 
 # 保留多个模块（出一个含 pcx + home 的合并包）
 npm run patch -- --project vOrange-gwzc-530 --module pcx,home
 ```
 
-**流程**：触发 `orange-aliyun` 全量打包 → 触发 `orange-patch` 按模块裁剪 → 下载补丁包到 `downloads/`。
-
-> 打包结束会弹 macOS 系统通知（成功/失败）。临时关闭：`NOTIFY=0 npm run patch -- ...`。
+**流程**：认证预检 → 触发 `orange-aliyun` 全量打包（期间流式打印构建日志）→ 触发 `orange-patch` 按模块裁剪 → 下载补丁包到 `downloads/`（带进度/重试）。
 
 **版本清单文件格式**（`project/<文件名>`，每行一个模块：`<时间戳> <模块名> <分支-提交>`）：
 
@@ -113,30 +130,32 @@ npm run patch -- --project vOrange-gwzc-530 --module pcx,home
 20260724113202 pcx    Feature_20260530_gwzc-HEAD
 ```
 
-### gwwy-online 命令（线上打包）
+### gwwy / gwwy-online 命令（uniapp 打包）
 
-触发 Jenkins 任务 `web/job/gwwy-uniapp` 按指定分支打包，等待构建结束并打印构建号 / 状态 / 构建页地址。与本地打包命令 `npm run gwwy`（本机 Git Bash 构建）互为线上/线下对应版本。
+`gwwy-online` 触发 Jenkins 任务 `web/job/gwwy-uniapp` 按指定分支打包，等待构建结束并从控制台日志提取下载链接、下载产物到 `downloads/`。`gwwy` 为本地（Git Bash）构建压缩版本，两者互为线上/线下对应。
 
 **参数：**
 
-| 参数 | 必填 | 默认 | 说明 |
-|------|------|------|------|
-| `--branch` | 是 | - | 要打包的 Git 分支名（对应 Jenkins 任务的 `git_branch` 参数） |
-| `--head` | 否 | `HEAD` | 分支上的提交 ref（对应 Jenkins 任务的 `git_head` 参数） |
+| 参数 | 命令 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| `--branch` | gwwy-online | 是 | - | 要打包的 Git 分支名 |
+| `--branch` | gwwy | 否 | 内置默认分支 | 本地构建的目标分支 |
+| `--head` | gwwy-online | 否 | `HEAD` | 分支上的提交 ref |
 
 **示例：**
 
 ```bash
-# 默认打包分支最新提交(HEAD)
+# 线上：默认打包分支最新提交(HEAD)
 npm run gwwy-online -- --branch Feature_20260130_chongQingWenLvWei
 
-# 指定具体提交
+# 线上：指定具体提交
 npm run gwwy-online -- --branch Feature_20260130_chongQingWenLvWei --head 4e9d71ff
+
+# 本地：指定分支（不传用默认分支）
+npm run gwwy -- --branch Feature_20260130_chongQingWenLvWei
 ```
 
-**流程**：认证预检 → 触发 `web/job/gwwy-uniapp` 构建（`wait:true` 等待完成，高负载下超时自动回避重试）→ 打印构建结果 → 从控制台日志提取下载链接（`gwwy-uniapp-file` 静态目录）并下载到 `downloads/`。
-
-> 打包结束会弹 macOS 系统通知（成功/失败）。临时关闭：`NOTIFY=0 npm run gwwy-online -- ...`。
+**流程**（gwwy-online）：认证预检 → 触发构建（`wait:true` 等待完成，期间流式打印构建日志，高负载下状态查询超时自动回避重试）→ 从控制台日志提取下载链接（`gwwy-uniapp-file` 静态目录）并下载到 `downloads/`（带进度显示、失败自动重试）。
 
 ## API 文档
 
@@ -189,6 +208,8 @@ npm run gwwy-online -- --branch Feature_20260130_chongQingWenLvWei --head 4e9d71
 | pollInterval | number  | 5000   | 轮询间隔(ms)     |
 | maxWaitTime  | number  | 600000 | 最大等待时间(ms)   |
 | crumbIssuer  | boolean | true   | 是否启用 CSRF 保护 |
+| retryOnTimeout | number | 3    | 轮询网络超时回避重试次数 |
+| streamLogs   | boolean | false | 等待期间是否增量打印构建日志（progressiveText，端点不可用时自动降级） |
 
 **返回值**:
 
@@ -242,6 +263,40 @@ npm run gwwy-online -- --branch Feature_20260130_chongQingWenLvWei --head 4e9d71
 
 **返回值**: `string` (日志内容)
 
+#### getProgressiveConsoleText(jobName, buildNumber, start?)
+
+增量获取构建日志（progressiveText 端点）。
+
+| 参数          | 类型     | 说明                       |
+| ----------- | ------ | ------------------------ |
+| jobName     | string | Job 名称                   |
+| buildNumber | number | 构建编号                     |
+| start       | number | 已消费的字节偏移，首次传 0（默认 0） |
+
+**返回值**: `{ text: string; textSize: number; moreData: boolean }` — `text` 为本次新增内容，`textSize` 作为下次的 `start`，`moreData` 表示构建是否还在产出日志。
+
+#### listJobs(folder?)
+
+列出 job（根目录或指定文件夹，只列一层）。
+
+| 参数     | 类型     | 说明                    |
+| ------ | ------- | ----------------------- |
+| folder | string? | 文件夹路径，如 `web`（可选） |
+
+**返回值**: `JobInfo[]`（`color`: blue=上次成功 / red=上次失败 / 带 `_anime` 后缀=进行中）
+
+#### getQueue()
+
+查看构建队列。**返回值**: `QueueItemInfo[]`（id / why / taskName / buildNumber 等）
+
+#### stopBuild(jobName, buildNumber, options?)
+
+停止进行中的构建。**返回值**: `Promise<void>`
+
+#### retryBuild(jobName, buildNumber, options?)
+
+重试已完成的构建（相当于 Jenkins 页面上的 Retry）。**返回值**: `Promise<BuildTriggerResult>`
+
 #### verifyAuth()
 
 验证 Jenkins 连接和认证是否有效。
@@ -290,6 +345,15 @@ npm run build
 ```bash
 npm run type-check
 ```
+
+## 测试
+
+```bash
+npm test          # 单次运行
+npm run test:watch  # 监听模式
+```
+
+单元测试（vitest）覆盖：辅助函数、通知拼装、配置加载、下载重试/校验、构建轮询与回避重试、状态解析、各工作流参数解析。测试不访问真实 Jenkins 服务器。
 
 ## License
 
