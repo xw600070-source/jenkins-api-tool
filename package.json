@@ -22,7 +22,9 @@
     "patch": "tsx ./examples/build-patch-workflow.ts",
     "gwwy": "tsx ./examples/03-build-gwwy-full-workflow.ts",
     "gwwy-online": "tsx ./examples/04-build-gwwy-uniapp-online.ts",
-    "jenkins": "tsx src/cli/index.ts"
+    "jenkins": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "jenkins",
@@ -43,6 +45,7 @@
     "ts-node": "^10.9.0",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.1.10"
   }
 }
