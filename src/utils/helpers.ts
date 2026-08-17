@@ -49,3 +49,10 @@ export function formatFileSize(bytes: number): string {
 export function stripTrailingSlash(url: string): string {
   return url.replace(/\/+$/, '');
 }
+
+/**
+ * 转义正则特殊字符（用于把动态字符串拼进正则表达式）
+ */
+export function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
