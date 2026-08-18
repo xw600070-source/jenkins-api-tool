@@ -6,6 +6,7 @@ import { createClientFromEnv, precheckAuth } from '../workflow/client-factory';
 import { runWorkflow } from '../workflow/run';
 import { JOBS, DOWNLOADS_DIR } from '../workflow/jobs';
 import { notify } from '../services/notify-service';
+import { parseFlagArgs } from './flag-args';
 
 /**
  * orange 版本清单合并工作流
@@ -42,22 +43,16 @@ export interface MergeInputDirs {
   projectDir: string;
 }
 
+/** 用法提示（参数解析与文件解析共用） */
+const MERGE_USAGE =
+  '用法: npm run merge -- --vorange <文件> --patch <文件>（缺省读取 merge/ 目录默认文件）';
+
 /**
  * 解析命令行参数
  */
 export function parseMergeArgs(argv: string[]): MergeArgs {
-  let vorange: string | undefined;
-  let patch: string | undefined;
-
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--vorange' && i + 1 < argv.length) {
-      vorange = argv[++i];
-    } else if (argv[i] === '--patch' && i + 1 < argv.length) {
-      patch = argv[++i];
-    }
-  }
-
-  return { vorange, patch };
+  const values = parseFlagArgs(argv, ['--vorange', '--patch'], MERGE_USAGE);
+  return { vorange: values['--vorange'], patch: values['--patch'] };
 }
 
 /** 列目录可用文件（不存在返回提示"（无）"） */
@@ -84,7 +79,7 @@ export function resolveMergeInput(
   dirs: MergeInputDirs
 ): string {
   const label = kind === 'vorange' ? 'vOrange 版本清单' : '补丁版本文件';
-  const usage = '用法: npm run merge -- --vorange <文件> --patch <文件>（缺省读取 merge/ 目录默认文件）';
+  const usage = MERGE_USAGE;
 
   const candidates: string[] = [];
   if (value) {

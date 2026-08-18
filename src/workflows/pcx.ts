@@ -5,6 +5,7 @@ import { createClientFromEnv, precheckAuth } from '../workflow/client-factory';
 import { downloadToFile } from '../workflow/download';
 import { runWorkflow } from '../workflow/run';
 import { JOBS, FILE_SERVER_BASE, DOWNLOADS_DIR, ORANGE_BUILD_OPTIONS } from '../workflow/jobs';
+import { parseFlagArgs } from './flag-args';
 
 /**
  * 固定打包 pcx 模块补丁包工作流（patch 命令的前身，保留作固定场景一键使用）
@@ -93,6 +94,11 @@ async function runPcxWorkflow(): Promise<void> {
 }
 
 export function pcxCommand(argv: string[] = []): void {
-  void argv;
-  runWorkflow({ command: 'pcx', main: () => runPcxWorkflow() });
+  runWorkflow({
+    command: 'pcx',
+    main: () => {
+      parseFlagArgs(argv, [], '用法: npm run pcx（本命令无参数）');
+      return runPcxWorkflow();
+    },
+  });
 }

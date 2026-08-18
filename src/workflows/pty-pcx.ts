@@ -5,6 +5,7 @@ import { CompressService } from '../services/bandzip-service';
 import { createClientFromEnv } from '../workflow/client-factory';
 import { runWorkflow } from '../workflow/run';
 import { JOBS } from '../workflow/jobs';
+import { parseFlagArgs } from './flag-args';
 
 /**
  * pty-pcx 完整打包工作流
@@ -201,6 +202,11 @@ async function runPtyPcxWorkflow(): Promise<void> {
 }
 
 export function ptyPcxCommand(argv: string[] = []): void {
-  void argv;
-  runWorkflow({ command: 'pty-pcx', main: () => runPtyPcxWorkflow() });
+  runWorkflow({
+    command: 'pty-pcx',
+    main: () => {
+      parseFlagArgs(argv, [], '用法: npm run pty-pcx（本命令无参数）');
+      return runPtyPcxWorkflow();
+    },
+  });
 }

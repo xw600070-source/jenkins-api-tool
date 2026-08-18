@@ -9,6 +9,7 @@ import { runWorkflow } from '../workflow/run';
 import { JOBS, FILE_SERVER_BASE, DOWNLOADS_DIR, ORANGE_BUILD_OPTIONS } from '../workflow/jobs';
 import { notify } from '../services/notify-service';
 import { listProjectFiles, pickProjectFile } from './interactive';
+import { parseFlagArgs } from './flag-args';
 
 /**
  * 灵活模块打包(patch)工作流
@@ -27,22 +28,15 @@ export interface PatchArgs {
   module: string;
 }
 
+const PATCH_USAGE =
+  '用法: npm run jenkins -- patch [--project <vOrange文件名>] [--module <模块>]（--module 缺省 pcx）';
+
 /**
  * 解析命令行参数（project 缺省时由调用方决定是否交互补选）
  */
 export function parsePatchArgs(argv: string[]): PatchArgs {
-  let project: string | undefined;
-  let moduleArg = 'pcx';
-
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--project' && i + 1 < argv.length) {
-      project = argv[++i];
-    } else if (argv[i] === '--module' && i + 1 < argv.length) {
-      moduleArg = argv[++i];
-    }
-  }
-
-  return { project, module: moduleArg };
+  const values = parseFlagArgs(argv, ['--project', '--module'], PATCH_USAGE);
+  return { project: values['--project'], module: values['--module'] ?? 'pcx' };
 }
 
 /** 解析或交互选择出 project 文件名 */

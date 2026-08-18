@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { CompressService } from '../services/bandzip-service';
 import { runWorkflow } from '../workflow/run';
+import { parseFlagArgs } from './flag-args';
 
 /**
  * gwwy-uniapp 本地打包工作流（Windows + Git Bash）
@@ -53,15 +54,12 @@ export const DEFAULT_TARGET_BRANCH = 'Feature_20260130_chongQingWenLvWei';
  * 解析命令行参数
  */
 export function parseGwwyLocalArgs(argv: string[]): GwwyLocalArgs {
-  let branch = DEFAULT_TARGET_BRANCH;
-
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--branch' && i + 1 < argv.length) {
-      branch = argv[++i];
-    }
-  }
-
-  return { branch };
+  const values = parseFlagArgs(
+    argv,
+    ['--branch'],
+    '用法: npm run jenkins -- gwwy [--branch <分支名>]（缺省使用默认分支）'
+  );
+  return { branch: values['--branch'] ?? DEFAULT_TARGET_BRANCH };
 }
 
 /**

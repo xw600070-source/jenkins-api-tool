@@ -6,6 +6,7 @@ import { downloadToFile } from '../workflow/download';
 import { runWorkflow } from '../workflow/run';
 import { JOBS, FILE_SERVER_BASE, DOWNLOADS_DIR } from '../workflow/jobs';
 import { notify } from '../services/notify-service';
+import { parseFlagArgs } from './flag-args';
 
 /**
  * gwwy-uniapp 线上打包工作流
@@ -29,26 +30,17 @@ export interface GwwyOnlineArgs {
  * 解析命令行参数
  */
 export function parseGwwyOnlineArgs(argv: string[]): GwwyOnlineArgs {
-  let branch: string | undefined;
-  let head = 'HEAD';
+  const usage =
+    '用法: npm run jenkins -- gwwy-online --branch <分支名> [--head <提交>]\n' +
+    '例如: npm run jenkins -- gwwy-online --branch Feature_20260130_chongQingWenLvWei';
+  const values = parseFlagArgs(argv, ['--branch', '--head'], usage);
 
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--branch' && i + 1 < argv.length) {
-      branch = argv[++i];
-    } else if (argv[i] === '--head' && i + 1 < argv.length) {
-      head = argv[++i];
-    }
-  }
-
+  const branch = values['--branch'];
   if (!branch) {
-    throw new JenkinsError(
-      '缺少必传参数 --branch\n' +
-        '用法: npm run gwwy-online -- --branch <分支名> [--head <提交>]\n' +
-        '例如: npm run gwwy-online -- --branch Feature_20260130_chongQingWenLvWei'
-    );
+    throw new JenkinsError(`缺少必传参数 --branch\n${usage}`);
   }
 
-  return { branch, head };
+  return { branch, head: values['--head'] ?? 'HEAD' };
 }
 
 async function runGwwyOnlineWorkflow(argv: string[]): Promise<void> {
