@@ -122,6 +122,9 @@ npm run patch -- --project vOrange-gwzc-530
 npm run patch -- --project vOrange-gwzc-530 --module pcx,home
 ```
 
+> **模块含 `public` 时的注意点**：`orange-patch` job 里 public 模块依赖的目录（worker、sso、business、static/ 一系列）由页面的级联脚本自动填进 `orange_extra` 参数，API 触发不走这个脚本。因此 `--module` 里包含 `public` 时，工具会自动附带 `orange_extra` 依赖清单，否则下载下来的补丁包里不会带 public 模块。
+
+
 **流程**：认证预检 → 触发 `orange-aliyun` 全量打包（期间流式打印构建日志）→ 触发 `orange-patch` 按模块裁剪 → 下载补丁包到 `downloads/`（带进度/重试）。
 
 **版本清单文件格式**（`project/<文件名>`，每行一个模块：`<时间戳> <模块名> <分支-提交>`）：

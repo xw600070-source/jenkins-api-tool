@@ -30,3 +30,16 @@ export const DOWNLOADS_DIR = path.join(process.cwd(), 'downloads');
 /** orange-aliyun 全量打包的 options 参数（patch/pcx 工作流共用） */
 export const ORANGE_BUILD_OPTIONS =
   'update_code,npm_build,package,update_package,package_monthly,orange_patch';
+
+/**
+ * orange-patch 的 orange_extra 参数值：public 模块依赖的目录清单
+ *
+ * Jenkins job 里该参数由级联脚本在「模块含 public」时自动填充（jar 的
+ * readOrangeExtra 输出），API 触发时不会执行该脚本。缺了它裁剪逻辑不会
+ * 带上这些依赖目录，下载的补丁包里就没有 public 模块，因此本地补传。
+ * 取值来源：orange-patch #9004/#9006/#9009 三次构建入参，完全一致。
+ */
+export const ORANGE_PUBLIC_EXTRA =
+  'worker,sso,business,static/file,static/img,static/lib,static/print,' +
+  'static/theme-fonts,static/theme1,static/theme10,static/theme2,static/theme3,' +
+  'static/theme4,static/theme5,static/theme6,static/theme7,static/theme8,static/theme9';

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parsePatchArgs } from './patch';
+import { parsePatchArgs, resolveOrangeExtra } from './patch';
+import { ORANGE_PUBLIC_EXTRA } from '../workflow/jobs';
 import { parseGwwyOnlineArgs } from './gwwy-online';
 import { parseGwwyLocalArgs, DEFAULT_TARGET_BRANCH } from './gwwy-local';
 import { parseMergeArgs } from './version-merge';
@@ -26,6 +27,25 @@ describe('parsePatchArgs', () => {
 
   it('flag 缺取值抛错', () => {
     expect(() => parsePatchArgs(['--project'])).toThrow(/缺少取值/);
+  });
+});
+
+describe('resolveOrangeExtra（模块含 public 时补依赖清单）', () => {
+  it('模块列表含 public 返回依赖清单', () => {
+    expect(resolveOrangeExtra('public,pcx')).toBe(ORANGE_PUBLIC_EXTRA);
+  });
+
+  it('public 在任意位置、逗号含空格均识别', () => {
+    expect(resolveOrangeExtra('pcx, public')).toBe(ORANGE_PUBLIC_EXTRA);
+  });
+
+  it('不含 public 返回 undefined（API 触发无需 orange_extra）', () => {
+    expect(resolveOrangeExtra('pcx')).toBeUndefined();
+    expect(resolveOrangeExtra('pcx,home')).toBeUndefined();
+  });
+
+  it('不按子串误判：publicX 不算 public', () => {
+    expect(resolveOrangeExtra('publicX,pcx')).toBeUndefined();
   });
 });
 

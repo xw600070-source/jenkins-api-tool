@@ -6,7 +6,7 @@ import { escapeRegExp } from '../utils/helpers';
 import { createClientFromEnv, precheckAuth } from '../workflow/client-factory';
 import { downloadToFile } from '../workflow/download';
 import { runWorkflow } from '../workflow/run';
-import { JOBS, FILE_SERVER_BASE, DOWNLOADS_DIR, ORANGE_BUILD_OPTIONS } from '../workflow/jobs';
+import { JOBS, FILE_SERVER_BASE, DOWNLOADS_DIR, ORANGE_BUILD_OPTIONS, ORANGE_PUBLIC_EXTRA } from '../workflow/jobs';
 import { notify } from '../services/notify-service';
 import { listProjectFiles, pickProjectFile } from './interactive';
 import { parseFlagArgs } from './flag-args';
@@ -37,6 +37,14 @@ const PATCH_USAGE =
 export function parsePatchArgs(argv: string[]): PatchArgs {
   const values = parseFlagArgs(argv, ['--project', '--module'], PATCH_USAGE);
   return { project: values['--project'], module: values['--module'] ?? 'pcx' };
+}
+
+/**
+ * 模块列表含 public 时返回 orange_extra 取值（public 依赖的目录清单），否则 undefined
+ */
+export function resolveOrangeExtra(module: string): string | undefined {
+  const modules = module.split(',').map((m) => m.trim()).filter(Boolean);
+  return modules.includes('public') ? ORANGE_PUBLIC_EXTRA : undefined;
 }
 
 /** 解析或交互选择出 project 文件名 */
@@ -108,13 +116,15 @@ async function runPatchWorkflow(argv: string[]): Promise<void> {
   }
   console.log(`  Generated package: ${zipMatch[0]}`);
 
-  // 触发 orange-patch 构建(按 --module 裁剪保留指定模块)
-  console.log(`\n=== Triggering orange-patch build (module: ${moduleArg}) ===`);
+  // 触发 orange-patch 构建(按 --module 裁剪保留指定模块；含 public 时补 orange_extra)
+  const orangeExtra = resolveOrangeExtra(moduleArg);
+  if (orangeExtra) console.log('  public 模块依赖 orange_extra 一并传入');
   const patchResult = await client.build(
     JOBS.orangePatch,
     {
       orange_package: zipMatch[0].replace('orange_', 'orange-patch-'),
       orange_module: moduleArg,
+      ...(orangeExtra && { orange_extra: orangeExtra }),
     },
     {
       wait: true,
