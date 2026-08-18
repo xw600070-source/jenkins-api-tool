@@ -6,6 +6,7 @@ import { createClientFromEnv } from '../workflow/client-factory';
 import { runWorkflow } from '../workflow/run';
 import { JOBS } from '../workflow/jobs';
 import { parseFlagArgs } from './flag-args';
+import { getErrorMessage } from '../utils/helpers';
 
 /**
  * pty-pcx 完整打包工作流
@@ -37,7 +38,7 @@ async function waitForFileUnlock(
         );
         await new Promise((resolve) => setTimeout(resolve, retryInterval));
       } else {
-        throw new Error(`文件持续被占用，已重试 ${maxRetries} 次`);
+        throw new Error(`文件持续被占用，已重试 ${maxRetries} 次`, { cause: error });
       }
     }
   }
@@ -68,7 +69,7 @@ function findAvailableZipPath(outputDir: string, baseFileName: string): string {
       }
     }
   } catch (error) {
-    console.error(`  [版本检测] 读取目录失败: ${error}`);
+    console.error(`  [版本检测] 读取目录失败: ${getErrorMessage(error)}`);
   }
 
   const versionStr = String(maxVersion + 1).padStart(3, '0');
@@ -129,8 +130,8 @@ async function runPtyPcxWorkflow(): Promise<void> {
     console.log(`  本地路径: ${result.localPath}`);
     console.log(`  下载耗时: ${result.duration}ms\n`);
     downloadedFilePath = result.localPath;
-  } catch (error: any) {
-    console.error(`✗ 下载失败: ${error.message}\n`);
+  } catch (error) {
+    console.error(`✗ 下载失败: ${getErrorMessage(error)}\n`);
   }
 
   if (!downloadedFilePath || !fs.existsSync(downloadedFilePath)) {
@@ -151,8 +152,8 @@ async function runPtyPcxWorkflow(): Promise<void> {
     console.log(`✓ 解压完成: ${extractResult.extractedCount} 个文件`);
     console.log(`  解压目录: ${extractResult.outputDir}`);
     console.log(`  解压耗时: ${extractResult.duration}ms\n`);
-  } catch (error: any) {
-    console.error(`✗ 解压失败: ${error.message}\n`);
+  } catch (error) {
+    console.error(`✗ 解压失败: ${getErrorMessage(error)}\n`);
   }
 
   // ============================================
@@ -163,8 +164,8 @@ async function runPtyPcxWorkflow(): Promise<void> {
     await waitForFileUnlock(downloadedFilePath, 10, 1000);
     fs.unlinkSync(downloadedFilePath);
     console.log(`✓ 已删除压缩包: ${downloadedFilePath}\n`);
-  } catch (error: any) {
-    console.error(`✗ 删除压缩包失败: ${error.message}\n`);
+  } catch (error) {
+    console.error(`✗ 删除压缩包失败: ${getErrorMessage(error)}\n`);
   }
 
   // ============================================
@@ -194,8 +195,8 @@ async function runPtyPcxWorkflow(): Promise<void> {
     console.log(`✓ 压缩完成: ${path.basename(compressResult.archivePath)}`);
     console.log(`  文件大小: ${(compressResult.size / 1024 / 1024).toFixed(2)} MB`);
     console.log(`  压缩耗时: ${compressResult.duration}ms\n`);
-  } catch (error: any) {
-    console.error(`✗ 压缩失败: ${error.message}\n`);
+  } catch (error) {
+    console.error(`✗ 压缩失败: ${getErrorMessage(error)}\n`);
   }
 
   console.log('=== 工作流结束 ===');

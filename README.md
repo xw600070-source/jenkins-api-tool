@@ -379,6 +379,15 @@ npm run build
 npm run type-check
 ```
 
+## 代码检查 (ESLint)
+
+```bash
+npm run lint        # 检查 src/
+npm run lint:fix    # 自动修复可修复的问题
+```
+
+使用 ESLint 10（flat config，`eslint.config.js`）+ typescript-eslint 类型感知规则（`recommendedTypeChecked`，含 `no-floating-promises` 等异步安全规则）。测试文件放宽了 unsafe-* 系列与 `unbound-method`。格式化规则不归 ESLint 管（官方已弃用），如需统一格式请单独引入 Prettier。
+
 ## 测试
 
 ```bash

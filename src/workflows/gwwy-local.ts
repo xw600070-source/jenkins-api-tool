@@ -5,6 +5,7 @@ import fs from 'fs';
 import { CompressService } from '../services/bandzip-service';
 import { runWorkflow } from '../workflow/run';
 import { parseFlagArgs } from './flag-args';
+import { getErrorMessage } from '../utils/helpers';
 
 /**
  * gwwy-uniapp 本地打包工作流（Windows + Git Bash）
@@ -99,7 +100,7 @@ async function getUpstreamBranch(): Promise<string> {
     ).trim();
 
     return upstream || '';
-  } catch (error) {
+  } catch {
     // 如果没有设置跟踪分支，返回空字符串
     return '';
   }
@@ -124,8 +125,6 @@ async function checkAndSwitchBranch(targetBranch: string): Promise<void> {
 
   const expectedUpstream = `origin/${targetBranch}`;
 
-  let needRebuild = false;
-
   if (currentBranch === targetBranch) {
     console.log('[提示] 已经在目标分支上');
 
@@ -139,49 +138,48 @@ async function checkAndSwitchBranch(targetBranch: string): Promise<void> {
       return;
     }
     console.log('[提示] 跟踪分支不正确，需要重建分支');
-    needRebuild = true;
   } else {
     console.log('[提示] 当前不在目标分支上，需要重建分支');
-    needRebuild = true;
   }
 
-  if (needRebuild) {
+  try {
+    console.log('\n[开始重建分支流程]');
+
+    console.log(`\n[步骤1] 切换到中间分支 ${DEV_TEST_BRANCH}...`);
+    await runGitBashCommand(`cd ${UNIAPP_PROJECT_PATH} && git checkout ${DEV_TEST_BRANCH}`);
+    console.log(`[成功] 已切换到 ${DEV_TEST_BRANCH} 分支`);
+
+    console.log(`\n[步骤2] 删除本地 ${targetBranch} 分支...`);
     try {
-      console.log('\n[开始重建分支流程]');
-
-      console.log(`\n[步骤1] 切换到中间分支 ${DEV_TEST_BRANCH}...`);
-      await runGitBashCommand(`cd ${UNIAPP_PROJECT_PATH} && git checkout ${DEV_TEST_BRANCH}`);
-      console.log(`[成功] 已切换到 ${DEV_TEST_BRANCH} 分支`);
-
-      console.log(`\n[步骤2] 删除本地 ${targetBranch} 分支...`);
-      try {
-        await runGitBashCommand(`cd ${UNIAPP_PROJECT_PATH} && git branch -D ${targetBranch}`);
-        console.log(`[成功] 已删除本地 ${targetBranch} 分支`);
-      } catch (error) {
-        console.log(`[提示] 本地 ${targetBranch} 分支不存在，跳过删除`);
-      }
-
-      console.log(`\n[步骤3] 从远程仓库 origin/${targetBranch} 新建本地 ${targetBranch} 分支...`);
-      await runGitBashCommand(
-        `cd ${UNIAPP_PROJECT_PATH} && git checkout -b ${targetBranch} origin/${targetBranch}`
-      );
-      console.log(`[成功] 已创建本地 ${targetBranch} 分支并跟踪 origin/${targetBranch}`);
-
-      console.log('\n[步骤4] 验证跟踪关系...');
-      const newUpstream = await getUpstreamBranch();
-      console.log(`[当前跟踪分支] ${newUpstream || '未设置'}`);
-      console.log(`[期望跟踪分支] ${expectedUpstream}`);
-
-      if (newUpstream === expectedUpstream) {
-        console.log('[成功] 分支重建完成，跟踪关系正确');
-      } else {
-        throw new Error(`分支重建失败，跟踪关系不正确: ${newUpstream}`);
-      }
-    } catch (error) {
-      console.error('\n[错误] 分支重建失败！');
-      console.error('整个流程已终止');
-      throw new Error(`无法正确重建分支: ${error instanceof Error ? error.message : String(error)}`);
+      await runGitBashCommand(`cd ${UNIAPP_PROJECT_PATH} && git branch -D ${targetBranch}`);
+      console.log(`[成功] 已删除本地 ${targetBranch} 分支`);
+    } catch {
+      console.log(`[提示] 本地 ${targetBranch} 分支不存在，跳过删除`);
     }
+
+    console.log(`\n[步骤3] 从远程仓库 origin/${targetBranch} 新建本地 ${targetBranch} 分支...`);
+    await runGitBashCommand(
+      `cd ${UNIAPP_PROJECT_PATH} && git checkout -b ${targetBranch} origin/${targetBranch}`
+    );
+    console.log(`[成功] 已创建本地 ${targetBranch} 分支并跟踪 origin/${targetBranch}`);
+
+    console.log('\n[步骤4] 验证跟踪关系...');
+    const newUpstream = await getUpstreamBranch();
+    console.log(`[当前跟踪分支] ${newUpstream || '未设置'}`);
+    console.log(`[期望跟踪分支] ${expectedUpstream}`);
+
+    if (newUpstream === expectedUpstream) {
+      console.log('[成功] 分支重建完成，跟踪关系正确');
+    } else {
+      throw new Error(`分支重建失败，跟踪关系不正确: ${newUpstream}`);
+    }
+  } catch (error) {
+    console.error('\n[错误] 分支重建失败！');
+    console.error('整个流程已终止');
+    throw new Error(
+      `无法正确重建分支: ${getErrorMessage(error)}`,
+      { cause: error }
+    );
   }
 
   console.log('='.repeat(50));
@@ -225,7 +223,7 @@ async function cleanDistFolder(): Promise<void> {
       // 使用 Git Bash rm -rf 命令删除，避免 Windows 文件锁问题
       await runGitBashCommand(`rm -rf ${UNIAPP_PROJECT_PATH}/dist`);
       console.log('[成功] dist 文件夹已删除');
-    } catch (error) {
+    } catch {
       console.warn('[警告] 删除 dist 文件夹失败，将继续执行');
     }
   } else {
@@ -238,7 +236,7 @@ async function cleanDistFolder(): Promise<void> {
 /**
  * 构建完成后将 h5 文件夹重命名为 gwwy-uniapp
  */
-async function renameH5Folder(): Promise<void> {
+function renameH5Folder(): void {
   console.log('='.repeat(50));
   console.log('重命名 h5 文件夹...');
 
@@ -301,7 +299,7 @@ async function runGwwyLocalWorkflow(argv: string[]): Promise<void> {
   await runBuild();
 
   // 5. 重命名 h5 文件夹
-  await renameH5Folder();
+  renameH5Folder();
 
   // 6. 压缩构建产物
   await compressBuild();

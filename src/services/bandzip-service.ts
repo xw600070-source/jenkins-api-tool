@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { exec } from 'child_process';
 import { Logger } from '../utils/logger';
-import { formatDuration, formatFileSize } from '../utils/helpers';
+import { formatDuration, formatFileSize, getErrorMessage } from '../utils/helpers';
 
 /**
  * 压缩级别
@@ -167,8 +167,8 @@ export class CompressService {
         duration,
         sourceCount: sourceList.length,
       };
-    } catch (error: any) {
-      throw new Error(`Compression failed: ${error.message}`);
+    } catch (error) {
+      throw new Error(`Compression failed: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 
@@ -227,8 +227,8 @@ export class CompressService {
         duration,
         extractedCount,
       };
-    } catch (error: any) {
-      throw new Error(`Extraction failed: ${error.message}`);
+    } catch (error) {
+      throw new Error(`Extraction failed: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 
@@ -340,7 +340,7 @@ export class CompressService {
           count++;
         }
       }
-    } catch (error) {
+    } catch {
       this.logger.warn(`Failed to count files in ${dirPath}`);
     }
     return count;

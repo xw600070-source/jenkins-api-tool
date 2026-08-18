@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Readable } from 'stream';
 import * as fs from 'fs';
 import * as path from 'path';
 import { NetworkError } from '../errors';
@@ -112,7 +113,7 @@ async function downloadOnce(
   partPath: string,
   onProgress: (downloaded: number, total: number) => void
 ): Promise<number> {
-  const response = await axios.get(url, {
+  const response = await axios.get<Readable>(url, {
     responseType: 'stream',
     // 下载走文件服务器静态目录，无需 Jenkins 认证头
   });

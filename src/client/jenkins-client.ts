@@ -1,5 +1,6 @@
 import { JenkinsClientConfig, BuildParameters, BuildOptions, BuildTriggerResult, BuildCompleteResult, BuildStatusResult, DownloadResult, DownloadAllResult, DownloadOptions, JobInfo, QueueItemInfo } from '../types';
 import { Logger } from '../utils/logger';
+import { getErrorMessage } from '../utils/helpers';
 import { HttpClient } from '../services/http-client';
 import { BuildService } from '../services/build-service';
 import { StatusService } from '../services/status-service';
@@ -210,11 +211,18 @@ export class JenkinsClient {
 
     try {
       // Try to get Jenkins version and user info from /api/json
-      const data: any = await this.httpClient.get('/api/json');
+      const data = await this.httpClient.get<{
+        user?: unknown;
+        authenticatedUser?: unknown;
+        version?: string;
+        _class?: string;
+      }>('/api/json');
+
+      const asString = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
 
       const result = {
         authenticated: true,
-        user: data.user || data.authenticatedUser || this.config.username,
+        user: asString(data.user) ?? asString(data.authenticatedUser) ?? this.config.username,
         version: data.version || (data._class ? 'Connected' : undefined),
         url: this.config.url,
       };
@@ -225,8 +233,8 @@ export class JenkinsClient {
       }
 
       return result;
-    } catch (error: any) {
-      this.logger.error(`Authentication failed: ${error.message}`);
+    } catch (error) {
+      this.logger.error(`Authentication failed: ${getErrorMessage(error)}`);
       return {
         authenticated: false,
         url: this.config.url,

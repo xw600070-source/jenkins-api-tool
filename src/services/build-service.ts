@@ -7,11 +7,9 @@ import {
   BuildOptions,
   BuildTriggerResult,
   BuildCompleteResult,
-  BuildStatus,
-  FileParameter,
 } from '../types';
 import { Logger } from '../utils/logger';
-import { formatDuration } from '../utils/helpers';
+import { formatDuration, getErrorMessage } from '../utils/helpers';
 import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export class BuildService {
   private httpClient: HttpClient;
   private statusService: StatusService;
@@ -41,7 +39,7 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
     let queueId: number;
 
     if (hasParams) {
-      queueId = await this.triggerWithParameters(jobName, params!);
+      queueId = await this.triggerWithParameters(jobName, params);
     } else {
       queueId = await this.triggerWithoutParameters(jobName);
     }
@@ -96,7 +94,7 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
         } else {
           await this.sleep(pollInterval);
         }
-      } catch (error: any) {
+      } catch (error) {
         // 处理超时重试
         if (this.isTimeoutError(error) && timeoutRetryCount < retryOnTimeout) {
           timeoutRetryCount++;
@@ -121,9 +119,9 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
       if (streamLogs) {
         try {
           logOffset = await this.streamConsoleDelta(jobName, buildNumber, logOffset);
-        } catch (error: any) {
+        } catch (error) {
           streamLogs = false;
-          this.logger.warn(`Streaming console disabled: ${error.message}`);
+          this.logger.warn(`Streaming console disabled: ${getErrorMessage(error)}`);
         }
       }
 
@@ -154,7 +152,7 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
 
         this.logger.debug(`Build #${buildNumber} still in progress...`);
         await this.sleep(pollInterval);
-      } catch (error: any) {
+      } catch (error) {
         // 处理超时重试
         if (this.isTimeoutError(error) && timeoutRetryCount < retryOnTimeout) {
           timeoutRetryCount++;
@@ -187,7 +185,7 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
 
     try {
       await this.httpClient.post(url, null);
-    } catch (error: any) {
+    } catch (error) {
       this.handleBuildTriggerError(error, jobName);
     }
   }
@@ -215,7 +213,7 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
         url: `${this.httpClient.getBaseUrl()}/job/${jobName}/`,
         jobName,
       };
-    } catch (error: any) {
+    } catch (error) {
       this.handleBuildTriggerError(error, jobName);
     }
   }
@@ -250,7 +248,7 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
         'Content-Type': 'application/x-www-form-urlencoded',
       });
       return this.extractQueueId(response);
-    } catch (error: any) {
+    } catch (error) {
       this.handleBuildTriggerError(error, jobName);
     }
   }
@@ -264,13 +262,13 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
   ): Promise<number> {
     const url = `/job/${jobName}/buildWithParameters`;
     const hasFileParams = Object.values(params).some(
-      (v) => typeof v === 'object' && v !== null && (v as FileParameter).type === 'file'
+      (v) => typeof v === 'object' && v !== null && (v).type === 'file'
     );
 
     try {
       if (hasFileParams) {
         // Use FormData for file parameters
-        const formData = await this.prepareFormData(params);
+        const formData = this.prepareFormData(params);
         const response = await this.httpClient.post(url, formData, {
           ...formData.getHeaders(),
         });
@@ -278,13 +276,13 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
       } else {
         // Use query string for simple parameters
         const queryParams = this.prepareQueryParams(params);
-        const queryString = new URLSearchParams(queryParams as any).toString();
+        const queryString = new URLSearchParams(queryParams).toString();
         const fullUrl = `${url}?${queryString}`;
 
         const response = await this.httpClient.post(fullUrl);
         return this.extractQueueId(response);
       }
-    } catch (error: any) {
+    } catch (error) {
       this.handleBuildTriggerError(error, jobName);
     }
   }
@@ -292,18 +290,18 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
   /**
    * 准备 FormData (包含文件)
    */
-  private async prepareFormData(params: BuildParameters): Promise<FormData> {
+  private prepareFormData(params: BuildParameters): FormData {
     const formData = new FormData();
 
     for (const [key, value] of Object.entries(params)) {
-      if (typeof value === 'object' && value !== null && (value as FileParameter).type === 'file') {
-        const fileParam = value as FileParameter;
-        const fileStream = fs.createReadStream(fileParam.path);
+      if (typeof value === 'object') {
+        // FileParameter：文件走流式上传
+        const fileStream = fs.createReadStream(value.path);
         formData.append(key, fileStream);
       } else if (typeof value === 'boolean') {
         formData.append(key, value ? 'true' : 'false');
       } else {
-        formData.append(key, String(value));
+        formData.append(key, value);
       }
     }
 
@@ -330,7 +328,7 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
   /**
    * 从响应中提取 Queue ID
    */
-  private extractQueueId(response: { data: any; headers: Record<string, string> }): number {
+  private extractQueueId(response: { data: unknown; headers: Record<string, string> }): number {
     // Jenkins returns queue ID in the Location header or response body
     const location = response.headers['location'];
     if (location) {
@@ -341,9 +339,10 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
     }
 
     // Fallback: check response body
-    if (typeof response.data === 'object' && response.data !== null) {
-      if (response.data.queueId) {
-        return response.data.queueId;
+    if (typeof response.data === 'object' && response.data !== null && 'queueId' in response.data) {
+      const queueId = response.data.queueId;
+      if (typeof queueId === 'number') {
+        return queueId;
       }
     }
 
@@ -354,8 +353,9 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
   /**
    * 处理构建触发错误
    */
-  private handleBuildTriggerError(error: any, jobName: string): never {
-    if (error.message && error.message.includes('404')) {
+  private handleBuildTriggerError(error: unknown, jobName: string): never {
+    const message = getErrorMessage(error);
+    if (message.includes('404')) {
       throw new JenkinsError(`Job not found: ${jobName}`, 404);
     }
     throw error;
@@ -373,13 +373,16 @@ import { TimeoutError, BuildFailedError, JenkinsError } from '../errors';export 
    * @param error - 捕获的错误对象
    * @returns 是否为超时错误
    */
-  private isTimeoutError(error: any): boolean {
-    // 检查错误码
-    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
-      return true;
+  private isTimeoutError(error: unknown): boolean {
+    if (error instanceof Error) {
+      // 网络层错误带 code 字段（如 axios 的 ETIMEDOUT/ECONNABORTED）
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ETIMEDOUT' || code === 'ECONNABORTED') {
+        return true;
+      }
+      const message = error.message.toLowerCase();
+      return message.includes('etimedout') || message.includes('econnaborted');
     }
-    // 检查错误消息（兼容不同错误来源）
-    const message = error.message?.toLowerCase() || '';
-    return message.includes('etimedout') || message.includes('econnaborted');
+    return false;
   }
 }

@@ -42,7 +42,7 @@ describe('downloadToFile', () => {
   });
 
   it('成功下载：写正式文件、.part 已清理、回调收到进度', async () => {
-    axiosGet.mockResolvedValueOnce(streamResponse(['hello ', 'world'], 11) as any);
+    axiosGet.mockResolvedValueOnce(streamResponse(['hello ', 'world'], 11));
 
     const onProgress = vi.fn();
     const result = await downloadToFile('http://x/a.zip', dir, {
@@ -59,9 +59,9 @@ describe('downloadToFile', () => {
 
   it('网络错误后重试成功', async () => {
     axiosGet
-      .mockRejectedValueOnce(new Error('socket hang up') as any)
-      .mockRejectedValueOnce(new Error('ECONNRESET') as any)
-      .mockResolvedValueOnce(streamResponse(['ok'], 2) as any);
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockRejectedValueOnce(new Error('ECONNRESET'))
+      .mockResolvedValueOnce(streamResponse(['ok'], 2));
 
     const result = await downloadToFile('http://x/a.zip', dir, {
       retries: 2,
@@ -75,7 +75,7 @@ describe('downloadToFile', () => {
 
   it('大小校验失败耗尽重试后抛 NetworkError', async () => {
     // content-length 声明 10，实际只有 5 字节 → 每次都校验失败
-    axiosGet.mockResolvedValue(streamResponse(['hello'], 10) as any);
+    axiosGet.mockResolvedValue(streamResponse(['hello'], 10));
 
     await expect(
       downloadToFile('http://x/a.zip', dir, { retries: 1, retryDelayMs: 1, onProgress: () => {} })
@@ -88,7 +88,7 @@ describe('downloadToFile', () => {
 
   it('目录不存在时自动创建', async () => {
     const nested = path.join(dir, 'a', 'b');
-    axiosGet.mockResolvedValueOnce(streamResponse(['x'], 1) as any);
+    axiosGet.mockResolvedValueOnce(streamResponse(['x'], 1));
 
     const result = await downloadToFile('http://x/a.zip', nested, {
       retryDelayMs: 1,

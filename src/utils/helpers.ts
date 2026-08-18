@@ -51,6 +51,13 @@ export function stripTrailingSlash(url: string): string {
 }
 
 /**
+ * 提取错误的可读信息（非 Error 值转字符串）
+ */
+export function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * 转义正则特殊字符（用于把动态字符串拼进正则表达式）
  */
 export function escapeRegExp(s: string): string {

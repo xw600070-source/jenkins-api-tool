@@ -1,9 +1,11 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Readable } from 'stream';
 import { JenkinsClientConfig, WorkspaceFileInfo } from '../types';
 import { Logger } from '../utils/logger';
-import { AuthenticationError, NetworkError, JenkinsError, JobNotFoundError, ArtifactNotFoundError } from '../errors';
+import { getErrorMessage } from '../utils/helpers';
+import { AuthenticationError, NetworkError, JenkinsError, JobNotFoundError } from '../errors';
 
 /**
  * CrumbData 接口定义
@@ -117,8 +119,8 @@ export class HttpClient {
     this.logger.debug(`  URL: ${response.config.baseURL || ''}${response.config.url || ''}`);
     this.logger.debug(`  响应头: ${this.safeStringify(response.headers)}`);
     // 响应体可能是对象、字符串、流等，根据 responseType 不同而不同
-    const body = response.data;
-    if (body && typeof body === 'object' && typeof body.pipe === 'function') {
+    const body: unknown = response.data;
+    if (body && typeof body === 'object' && typeof (body as { pipe?: unknown }).pipe === 'function') {
       // 流式响应，跳过序列化
       this.logger.debug('  响应体: [Stream]');
     } else if (typeof body === 'string') {
@@ -136,9 +138,9 @@ export class HttpClient {
   /**
    * 安全地将对象转换为 JSON 字符串，处理循环引用
    */
-  private safeStringify(obj: any): string {
-    const seen = new WeakSet();
-    return JSON.stringify(obj, (key, value) => {
+  private safeStringify(obj: unknown): string {
+    const seen = new WeakSet<object>();
+    return JSON.stringify(obj, (_key: string, value: unknown) => {
       if (typeof value === 'object' && value !== null) {
         if (seen.has(value)) {
           return '[Circular]';
@@ -203,14 +205,12 @@ export class HttpClient {
       }
       
       this.logger.debug('CSRF crumb obtained');
-    } catch (error: any) {
-      // catch 块用于捕获 try 块中抛出的异常
-      // error: any 表示 error 可以是任何类型（因为 JavaScript 中 throw 的值没有类型限制）
-      if (error.response?.status === 404) {
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
         // 404 表示 Jenkins 服务器没有启用 CSRF 保护，这是正常情况
         this.logger.debug('CSRF protection not enabled on Jenkins server');
       } else {
-        this.logger.warn('Failed to obtain CSRF crumb:', error.message);
+        this.logger.warn('Failed to obtain CSRF crumb:', getErrorMessage(error));
       }
     }
   }
@@ -222,7 +222,7 @@ export class HttpClient {
    * params 后面的 ? 表示这个参数是可选的，调用时可以省略
    * Record<string, any> 是 TypeScript 内置类型，表示一个键为字符串、值为任意类型的对象
    */
-  async get<T>(urlPath: string, params?: Record<string, any>): Promise<T> {
+  async get<T>(urlPath: string, params?: Record<string, unknown>): Promise<T> {
     const response: AxiosResponse<T> = await this.axiosInstance.get(urlPath, { params });
     return response.data;
   }
@@ -231,7 +231,7 @@ export class HttpClient {
    * GET 请求方法（返回 data + 响应头）
    * 供需要读取响应头的场景使用，如 progressiveText 的 X-Text-Size
    */
-  async getFull<T>(urlPath: string, params?: Record<string, any>): Promise<{ data: T; headers: Record<string, string> }> {
+  async getFull<T>(urlPath: string, params?: Record<string, unknown>): Promise<{ data: T; headers: Record<string, string> }> {
     const response: AxiosResponse<T> = await this.axiosInstance.get(urlPath, { params });
     return { data: response.data, headers: response.headers as Record<string, string> };
   }
@@ -240,7 +240,7 @@ export class HttpClient {
    * POST 请求方法
    * 返回一个包含 data（响应体）和 headers（响应头）的对象
    */
-  async post<T>(urlPath: string, data?: any, headers?: Record<string, string>): Promise<{ data: T; headers: Record<string, string> }> {
+  async post<T>(urlPath: string, data?: unknown, headers?: Record<string, string>): Promise<{ data: T; headers: Record<string, string> }> {
     const response: AxiosResponse<T> = await this.axiosInstance.post(urlPath, data, { headers });
     return { data: response.data, headers: response.headers as Record<string, string> };
   }
@@ -257,7 +257,7 @@ export class HttpClient {
   ): Promise<void> {
     // responseType: 'stream' 告诉 axios 返回 Node.js 的 Readable Stream（可读流）
     // 流是一种逐步读取数据的方式，不需要一次性将所有数据加载到内存
-    const response = await this.axiosInstance.get(urlPath, {
+    const response = await this.axiosInstance.get<Readable>(urlPath, {
       responseType: 'stream',
     });
 
@@ -364,7 +364,7 @@ export class HttpClient {
     this.logger.debug(`Fetching workspace file list: ${url}`);
 
     // 获取 HTML 格式的文件列表
-    const html = await this.axiosInstance.get(url, {
+    const html = await this.axiosInstance.get<string>(url, {
       headers: { 'Accept': 'text/html' },
       responseType: 'text',
     });

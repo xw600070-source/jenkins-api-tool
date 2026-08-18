@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BuildService } from './build-service';
 import { HttpClient } from './http-client';
 import { StatusService } from './status-service';
-import { BuildFailedError, TimeoutError } from '../errors';
+import { TimeoutError } from '../errors';
 import type { BuildStatusResult } from '../types';
 
 /** 构造已结束构建的状态结果 */

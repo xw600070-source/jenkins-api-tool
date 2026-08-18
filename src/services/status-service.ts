@@ -1,8 +1,26 @@
 import { HttpClient } from './http-client';
 import { BuildStatusResult, BuildStatus, ArtifactInfo, BuildCause, Parameter, JobInfo, QueueItemInfo } from '../types';
 import { Logger } from '../utils/logger';
-import { JenkinsError } from '../errors';
 
+/** /job/<job>/<build>/api/json 响应结构 */
+interface BuildApiJson {
+  result: string | null;
+  building: boolean;
+  number: number;
+  displayName?: string;
+  description?: string;
+  timestamp?: number;
+  duration?: number;
+  estimatedDuration?: number;
+  url?: string;
+  artifacts?: Array<{ fileName: string; relativePath: string }>;
+  actions?: Array<{
+    causes?: Array<{ shortDescription: string; userId?: string; userName?: string }>;
+    parameters?: Array<{ name: string; value: string | boolean }>;
+  }>;
+}
+
+/** /queue/item/<id>/api/json 响应结构 */
 interface QueueItem {
   id: number;
   executable?: {
@@ -10,6 +28,22 @@ interface QueueItem {
     url: string;
   };
   why?: string;
+}
+
+/** 根目录 / folder 的 api/json 响应结构（jobs 列表） */
+interface JobsApiJson {
+  jobs?: Array<{ name: string; url: string; color?: string }>;
+}
+
+/** /queue/api/json 响应结构 */
+interface QueueApiJson {
+  items?: Array<{
+    id: number;
+    why?: string;
+    task?: { name?: string; url?: string };
+    executable?: { number?: number };
+    inQueueSince?: number;
+  }>;
 }
 
 export class StatusService {
@@ -30,7 +64,7 @@ export class StatusService {
 
     this.logger.debug(`Fetching build status: ${url}`);
 
-    const data: any = await this.httpClient.get(url);
+    const data = await this.httpClient.get<BuildApiJson>(url);
     return this.parseBuildStatus(data, jobName);
   }
 
@@ -65,9 +99,9 @@ export class StatusService {
 
     this.logger.debug(`Listing jobs: ${url}`);
 
-    const data: any = await this.httpClient.get(url, { tree: 'jobs[name,url,color]' });
+    const data = await this.httpClient.get<JobsApiJson>(url, { tree: 'jobs[name,url,color]' });
 
-    return (data.jobs || []).map((job: any) => ({
+    return (data.jobs || []).map((job) => ({
       name: job.name,
       url: job.url,
       color: job.color || 'notbuilt',
@@ -82,9 +116,9 @@ export class StatusService {
 
     this.logger.debug(`Fetching queue: ${url}`);
 
-    const data: any = await this.httpClient.get(url);
+    const data = await this.httpClient.get<QueueApiJson>(url);
 
-    return (data.items || []).map((item: any) => ({
+    return (data.items || []).map((item) => ({
       id: item.id,
       why: item.why,
       taskName: item.task?.name,
@@ -97,9 +131,9 @@ export class StatusService {
   /**
    * 解析 Jenkins API 响应为 BuildStatusResult
    */
-  private parseBuildStatus(data: any, jobName: string): BuildStatusResult {
+  private parseBuildStatus(data: BuildApiJson, jobName: string): BuildStatusResult {
     const status = this.mapBuildStatus(data.result, data.building);
-    const artifacts: ArtifactInfo[] = (data.artifacts || []).map((a: any) => ({
+    const artifacts: ArtifactInfo[] = (data.artifacts || []).map((a) => ({
       fileName: a.fileName,
       relativePath: a.relativePath,
     }));
@@ -129,6 +163,8 @@ export class StatusService {
       }
     }
 
+    const url = data.url || '';
+
     return {
       jobName,
       buildNumber: data.number,
@@ -139,8 +175,8 @@ export class StatusService {
       duration: data.duration || 0,
       estimatedDuration: data.estimatedDuration,
       building: data.building || false,
-      url: data.url || '',
-      consoleUrl: `${data.url}consoleText`,
+      url,
+      consoleUrl: `${url}consoleText`,
       artifacts,
       causes,
       parameters,

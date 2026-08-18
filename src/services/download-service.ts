@@ -4,8 +4,7 @@ import { HttpClient } from './http-client';
 import { StatusService } from './status-service';
 import { DownloadResult, DownloadAllResult, DownloadOptions, WorkspaceFileInfo } from '../types';
 import { Logger } from '../utils/logger';
-import { formatFileSize } from '../utils/helpers';
-import { ArtifactNotFoundError, JenkinsError } from '../errors';
+import { formatFileSize, getErrorMessage } from '../utils/helpers';
 
 export class DownloadService {
   private httpClient: HttpClient;
@@ -97,8 +96,8 @@ export class DownloadService {
         const result = await this.downloadArtifact(jobName, buildNumber, artifact.relativePath, outputDir);
         results.push(result);
         success++;
-      } catch (error: any) {
-        this.logger.error(`Failed to download ${artifact.fileName}: ${error.message}`);
+      } catch (error) {
+        this.logger.error(`Failed to download ${artifact.fileName}: ${getErrorMessage(error)}`);
         failed++;
       }
     }
@@ -209,8 +208,8 @@ export class DownloadService {
         );
         results.push(result);
         success++;
-      } catch (error: any) {
-        this.logger.error(`Failed to download ${file.relativePath}: ${error.message}`);
+      } catch (error) {
+        this.logger.error(`Failed to download ${file.relativePath}: ${getErrorMessage(error)}`);
         failed++;
       }
     }
