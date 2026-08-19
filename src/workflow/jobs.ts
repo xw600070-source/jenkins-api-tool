@@ -27,9 +27,13 @@ export const FILE_SERVER_BASE =
 /** 工作流产物统一下载目录 */
 export const DOWNLOADS_DIR = path.join(process.cwd(), 'downloads');
 
-/** orange-aliyun 全量打包的 options 参数（patch/pcx 工作流共用） */
+/** orange-aliyun 全量打包的 options 参数（patch/pcx 工作流共用，含裁剪/月包步骤） */
 export const ORANGE_BUILD_OPTIONS =
   'update_code,npm_build,package,update_package,package_monthly,orange_patch';
+
+/** orange-aliyun 整包打包的 options 参数（orange 整包命令专用，不含裁剪/月包步骤） */
+export const ORANGE_FULL_BUILD_OPTIONS =
+  'update_code,npm_build,package,update_package';
 
 /**
  * orange-patch 的 orange_extra 参数值：public 模块依赖的目录清单
